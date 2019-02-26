@@ -15,11 +15,12 @@ docker build -t <your-image-name> .
 docker run --rm -it -p 3000:3000 <your-image-name>
 ```
 
-Open: [shop](localhost:3000)
+Open: [shop](http://localhost:3000)
 
 ### Configuration
 
 Key | Default Value | Description
+---|---|---
 PORT | `3000` |
 BANNER_COLOR | "css property" |
 
@@ -27,6 +28,8 @@ BANNER_COLOR | "css property" |
 
 ### Routes
 
+Method | Route | Description
+---|---|---
 `GET` | `/` | home page (product list, link to the cart)
 `GET`| `/product/{id}` | product page, select quantity, add to the cart
 `POST` | `/setCurrency` | change user currency preference
