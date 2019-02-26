@@ -21,8 +21,8 @@ func init() {
 	if err := json.Unmarshal(c, &pl); err != nil {
 		log.Fatalf("failed to parse the catalog JSON: %v", err)
 	}
-	prodList = pl["product"]
-	log.Println("successfully parsed product catalog json")
+	prodList = pl["products"]
+	log.Printf("successfully parsed %d products catalog from json\n", len(prodList))
 }
 
 // Product
@@ -31,7 +31,7 @@ type Product struct {
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
 	Picture     string `json:"picture,omitempty"`
-	PriceUsd    *Money `json=priceUsd,proto3" json:"price_usd,omitempty"`
+	PriceUsd    Money  `json:"priceUsd,omitempty"`
 	// Categories such as "vintage" or "gardening" that can be used to look up
 	// other related products.
 	Categories []string `json:"categories,omitempty"`

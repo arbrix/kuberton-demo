@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
@@ -21,41 +22,29 @@ var (
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	l := hlog.FromRequest(r)
-	l.Info().Str("currency", currentCurrency(r)).Msg("home handler")
-	// Retraive currency list
-	//
-	/*
-		currencies, curVer, err := fe.getCurrencies(r.Context())
-		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
-			return
-		}
-	*/
+	curCurr := currentCurrency(r)
 
+	currencies := Currencies()
 	products := ListProducts()
+
+	l.Info().Str("currency", curCurr).Int("cur num", len(currencies)).Int("prod num", len(products)).Msg("home handler")
+
 	type productView struct {
 		Item  Product
 		Price Money
 	}
 	ps := make([]productView, len(products))
 	for i, p := range products {
-		// calculate price by currenyc
-		/*
-			price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
-			if err != nil {
-				renderHTTPError(log, r, w, errors.Wrapf(err, "failed to do currency conversion for product %s", p.GetId()), http.StatusInternalServerError)
-				return
-			}
-		*/
-		ps[i] = productView{p, Money{}}
+		price := Convert(p.PriceUsd, curCurr)
+		ps[i] = productView{p, price}
 	}
 
 	rid, _ := hlog.IDFromRequest(r)
 	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
-		"request_id": rid.String(),
-		//"user_currency": currentCurrency(r),
-		//"currencies":    currencies,
-		"products": ps,
+		"request_id":    rid.String(),
+		"user_currency": curCurr,
+		"currencies":    currencies,
+		"products":      ps,
 		//"cart_size":     len(cart),
 		//"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
 	}); err != nil {
@@ -65,7 +54,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 func productHandler(w http.ResponseWriter, r *http.Request) {
 	l := hlog.FromRequest(r)
-	id := r.FormValue("id")
+	id := chi.URLParam(r, "id")
 	if id == "" {
 		renderHTTPError(l, r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
@@ -78,33 +67,19 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*
-		currencies, curVer, err := fe.getCurrencies(r.Context())
-		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
-			return
-		}
-	*/
-
-	/*
-		price, err := fe.convertCurrency(r.Context(), p.GetPriceUsd(), currentCurrency(r))
-		if err != nil {
-			renderHTTPError(log, r, w, errors.Wrap(err, "failed to convert currency"), http.StatusInternalServerError)
-			return
-		}
-	*/
-
+	currencies := Currencies()
+	price := Convert(p.PriceUsd, currentCurrency(r))
 	product := struct {
 		Item  Product
 		Price Money
-	}{*p, Money{}}
+	}{*p, price}
 
 	rid, _ := hlog.IDFromRequest(r)
 	if err := templates.ExecuteTemplate(w, "product", map[string]interface{}{
-		"request_id": rid.String(),
-		//"user_currency":   currentCurrency(r),
-		//"currencies":      currencies,
-		"product": product,
+		"request_id":    rid.String(),
+		"user_currency": currentCurrency(r),
+		"currencies":    currencies,
+		"product":       product,
 	}); err != nil {
 		l.Info().Err(err).Msg("unable to parse product template")
 	}

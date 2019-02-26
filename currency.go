@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 )
 
@@ -15,9 +16,14 @@ type xmlCurRate struct {
 	Rate    string   `xml:"rate,attr"`
 }
 
-type xmlCube struct {
+type xmlCube1 struct {
 	XMLName xml.Name     `xml:"Cube"`
 	Rates   []xmlCurRate `xml:"Cube"`
+}
+
+type xmlCube struct {
+	XMLName xml.Name `xml:"Cube"`
+	Cube    xmlCube1 `xml:"Cube"`
 }
 
 type xmlEnvelope struct {
@@ -58,17 +64,47 @@ func init() {
 	}
 
 	var r float64
-	for _, cr := range x.Cube.Rates {
+	for _, cr := range x.Cube.Cube.Rates {
 		r, err = strconv.ParseFloat(cr.Rate, 64)
-		if err != nil {
+		if err != nil || !whitelistedCurrencies[cr.Cur] {
 			continue
 		}
 		rates[cr.Cur] = r
 	}
 
 	rates["EUR"] = 1.0
+	log.Printf("currencies rates successfully retraived: %d\n", len(rates))
 }
 
 func Rates() map[string]float64 {
 	return rates
+}
+
+func Currencies() []string {
+	cs := []string{}
+	for c := range rates {
+		if whitelistedCurrencies[c] {
+			cs = append(cs, c)
+		}
+	}
+	sort.Strings(cs)
+	return cs
+}
+
+func Convert(price Money, currency string) Money {
+	if currency == "USD" {
+		return price
+	}
+
+	if rates[price.CurrencyCode] == 0.0 || rates[currency] == 0.0 {
+		return Money{CurrencyCode: currency}
+	}
+
+	eurUnits := float64(price.Units) / rates[price.CurrencyCode]
+	eurNanos := float64(price.Nanos) / rates[price.CurrencyCode]
+	return Money{
+		CurrencyCode: currency,
+		Units:        int64(eurUnits * rates[currency]),
+		Nanos:        int32(eurNanos * rates[currency]),
+	}
 }

@@ -18,7 +18,7 @@ var (
 // Money Represents an amount of money with its currency type.
 type Money struct {
 	// The 3-letter currency code defined in ISO 4217.
-	CurrencyCode string `json:"currency_code,omitempty"`
+	CurrencyCode string `json:"currencyCode,omitempty"`
 	// The whole units of the amount.
 	// For example if `currencyCode` is `"USD"`, then 1 unit is one US dollar.
 	Units int64 `json:"units,omitempty"`

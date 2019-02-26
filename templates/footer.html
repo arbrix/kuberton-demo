@@ -2,9 +2,8 @@
     <footer class="py-5 px-5">
         <div class="container">
             <p>
-                &copy; 2018 Google Inc
                 <span class="text-muted">
-                    <a href="https://github.com/GoogleCloudPlatform/microservices-demo/">(Source Code)</a>
+                    <a href="https://github.com/arbrix/kubertron-demo/">(Source Code)</a>
                 </span>
             </p>
             <p>
@@ -14,8 +13,6 @@
                 </small>
             </p>
             <small class="text-muted">
-                {{ if $.frontend_version}}frontend_version: {{ $.frontend_version}}</br>{{end}}
-                {{ if $.session_id }}session-id: {{ $.session_id }}</br>{{end}}
                 {{ if $.request_id }}request-id: {{ $.request_id }}</br>{{end}}
             </small>
         </div>
