@@ -37,6 +37,9 @@ func main() {
 		Addr:    ":" + strconv.Itoa(cfg.Port),
 		Handler: RegisterRouter(),
 	}
+
+	//fmt.Println(docgen.MarkdownRoutesDoc(srv.Handler.(chi.Router), docgen.MarkdownOpts{}))
+
 	go func() {
 		log.Info().Int("port", cfg.Port).Msg("Listening HTTP")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {

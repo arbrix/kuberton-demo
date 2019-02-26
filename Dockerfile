@@ -1,7 +1,7 @@
 FROM golang:1.11-alpine as builder
 RUN apk add --no-cache ca-certificates git
 
-ENV PROJECT github.com/arbrix/kubertron-demo
+ENV PROJECT github.com/arbrix/kuberton-demo
 WORKDIR /go/src/$PROJECT
 
 # restore dependencies
@@ -15,6 +15,7 @@ RUN apk add --no-cache ca-certificates \
     busybox-extras net-tools bind-tools
 WORKDIR /shop
 COPY --from=builder /go/bin/kubertron-demo /shop/server
+COPY ./products.json ./products.json
 COPY ./templates ./templates
 COPY ./static ./static
 EXPOSE 3000
