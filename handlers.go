@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/render"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/hlog"
 	"github.com/rs/zerolog/log"
 )
+
+const cookieCartSize = "cart_size"
 
 var (
 	templates = template.Must(template.New("").
@@ -40,12 +44,18 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rid, _ := hlog.IDFromRequest(r)
+	cookieCartSize, _ := r.Cookie(cookiePrefix + cookieCartSize)
+	cartSize := 0
+	if cookieCartSize != nil {
+		cartSize, _ = strconv.Atoi(cookieCartSize.Value)
+	}
+
 	if err := templates.ExecuteTemplate(w, "home", map[string]interface{}{
 		"request_id":    rid.String(),
 		"user_currency": curCurr,
 		"currencies":    currencies,
 		"products":      ps,
-		//"cart_size":     len(cart),
+		"cart_size":     cartSize,
 		//"banner_color":  os.Getenv("BANNER_COLOR"), // illustrates canary deployments
 	}); err != nil {
 		log.Info().Err(err).Msg("unable to parse home template")
@@ -56,14 +66,20 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 	l := hlog.FromRequest(r)
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		renderHTTPError(l, r, w, errors.New("product id not specified"), http.StatusBadRequest)
+		renderError(l, r, w, errors.New("product id not specified"), http.StatusBadRequest)
 		return
 	}
 	l.Debug().Str("id", id).Str("currency", currentCurrency(r)).Msg("serving product page") //
 
 	p, err := GetProduct(id)
 	if err != nil {
-		renderHTTPError(l, r, w, errors.Wrap(err, "could not retrieve product"), http.StatusInternalServerError)
+		renderError(l, r, w, errors.Wrap(err, "could not retrieve product"), http.StatusInternalServerError)
+		return
+	}
+
+	// define response context 'json' or html as default
+	if r.URL.Query().Get("json") != "" {
+		render.JSON(w, r, *p)
 		return
 	}
 
@@ -73,7 +89,6 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 		Item  Product
 		Price Money
 	}{*p, price}
-
 	rid, _ := hlog.IDFromRequest(r)
 	if err := templates.ExecuteTemplate(w, "product", map[string]interface{}{
 		"request_id":    rid.String(),
@@ -97,6 +112,26 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusFound)
 }
 
+func ratesHandler(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, Rates())
+}
+
+func convertHandler(w http.ResponseWriter, r *http.Request) {
+	l := hlog.FromRequest(r)
+	curID := chi.URLParam(r, "currency_id")
+	rawPrice := chi.URLParam(r, "price")
+	price, err := strconv.ParseFloat(rawPrice, 64)
+
+	if curID == "" || err != nil || price == 0.0 || !whitelistedCurrencies[curID] {
+		l.Debug().Str("currenyc", curID).Float64("price", price).Msg("input parameters invalid")
+		renderError(l, r, w, errors.Wrap(err, "not enough parameters"), http.StatusBadRequest)
+		return
+	}
+
+	render.JSON(w, r, Convert(NewMoney(price, defaultCurrency), curID))
+
+}
+
 func setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	l := hlog.FromRequest(r)
 	cur := r.FormValue("currency_code")
@@ -117,12 +152,19 @@ func setCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusFound)
 }
 
-func renderHTTPError(l *zerolog.Logger, r *http.Request, w http.ResponseWriter, err error, code int) {
+func renderError(l *zerolog.Logger, r *http.Request, w http.ResponseWriter, err error, code int) {
 	l.Error().Err(err).Msg("request error")
 	errMsg := fmt.Sprintf("%+v", err)
+	isJSON := r.URL.Query().Get("json") != ""
 
 	w.WriteHeader(code)
 	rid, _ := hlog.IDFromRequest(r)
+
+	if isJSON {
+		render.JSON(w, r, map[string]string{"err": errMsg, "cid": string(rid[:])})
+		return
+	}
+
 	templates.ExecuteTemplate(w, "error", map[string]interface{}{
 		"request_id":  rid.String(),
 		"error":       errMsg,

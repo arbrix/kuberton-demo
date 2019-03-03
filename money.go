@@ -31,6 +31,14 @@ type Money struct {
 	Nanos int32 `json:"nanos,omitempty"`
 }
 
+func NewMoney(price float64, currency string) Money {
+	return Money{
+		CurrencyCode: currency,
+		Units:        int64(price),
+		Nanos:        int32(price*nanosMod) % nanosMod,
+	}
+}
+
 // IsValid checks if specified value has a valid units/nanos signs and ranges.
 func IsValid(m Money) bool {
 	return signMatches(m) && validNanos(m.Nanos)

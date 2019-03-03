@@ -28,8 +28,9 @@ func RegisterRouter() chi.Router {
 
 	r.Get("/", homeHandler)
 	r.Get("/product/{id}", productHandler)
+	r.Get("/rate", ratesHandler)
+	r.Get("/convert/{currency_id}/{price}", convertHandler)
 	r.Post("/setCurrency", setCurrencyHandler)
-	r.Get("/logout", logoutHandler)
 
 	workDir, _ := os.Getwd()
 	filesDir := filepath.Join(workDir, "static")
